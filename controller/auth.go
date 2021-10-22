@@ -8,7 +8,7 @@ import (
 	"github.com/fadhlimulyana20/golang-echo-server/database"
 	"github.com/fadhlimulyana20/golang-echo-server/helper"
 	"github.com/fadhlimulyana20/golang-echo-server/model"
-	"github.com/gofiber/fiber/v2"
+	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,11 +21,11 @@ type loginDTO struct {
 	Password string `json:"password"`
 }
 
-func Register(c *fiber.Ctx) error {
+func Register(c echo.Context) error {
 	u := new(model.User)
 
-	if err := c.BodyParser(u); err != nil {
-		return c.Status(500).JSON(&model.Json{
+	if err := c.Bind(u); err != nil {
+		return c.JSON(http.StatusInternalServerError, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
@@ -36,45 +36,44 @@ func Register(c *fiber.Ctx) error {
 	db := database.DbManager()
 	_, err := db.Collection("users").InsertOne(ctx, u)
 	if err != nil {
-		return c.Status(500).JSON(&model.Json{
+		return c.JSON(http.StatusInternalServerError, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
 	}
 
-	return c.Status(200).JSON(&model.Json{
+	return c.JSON(http.StatusOK, &model.Json{
 		Status: "success",
 		Data:   u,
 	})
 }
 
-func Login(c *fiber.Ctx) error {
+func Login(c echo.Context) error {
 	l := new(loginDTO)
 	u := new(model.User)
 
-	if err := c.BodyParser(l); err != nil {
-		return c.Status(500).JSON(&model.Json{
+	if err := c.Bind(l); err != nil {
+		return c.JSON(http.StatusInternalServerError, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
 	}
-
 	db := database.DbManager()
 	err := db.Collection("users").FindOne(ctx, bson.M{"email": l.Email}).Decode(&u)
 	if err == mongo.ErrNoDocuments {
-		return c.Status(404).JSON(&model.Json{
+		return c.JSON(http.StatusNotFound, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
 	} else if err != nil {
-		return c.Status(500).JSON(&model.Json{
+		return c.JSON(http.StatusInternalServerError, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
 	}
 
 	if l.Password != u.Password {
-		return c.Status(http.StatusUnauthorized).JSON(&model.Json{
+		return c.JSON(http.StatusUnauthorized, &model.Json{
 			Status:  "failed",
 			Message: "Password Salah",
 		})
@@ -83,13 +82,13 @@ func Login(c *fiber.Ctx) error {
 	j := new(helper.JWT)
 	token, err := j.CreateToken(u.Id.Hex(), 48, "token")
 	if err != nil {
-		return c.Status(500).JSON(&model.Json{
+		return c.JSON(http.StatusInternalServerError, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
 	}
 
-	return c.Status(http.StatusOK).JSON(&model.Json{
+	return c.JSON(http.StatusOK, &model.Json{
 		Status: "success",
 		Data: map[string]interface{}{
 			"token": token,
@@ -98,8 +97,8 @@ func Login(c *fiber.Ctx) error {
 	})
 }
 
-func Me(c *fiber.Ctx) error {
-	authHeader := c.Get("Authorization")
+func Me(c echo.Context) error {
+	authHeader := c.Request().Header.Get("Authorization")
 	u := new(model.User)
 
 	if !strings.Contains(authHeader, "Bearer") {
@@ -108,7 +107,7 @@ func Me(c *fiber.Ctx) error {
 			Message: "Anda belum Login",
 		}
 
-		return c.Status(http.StatusUnauthorized).JSON(data)
+		return c.JSON(http.StatusUnauthorized, data)
 	}
 
 	tokenString := strings.Replace(authHeader, "Bearer ", "", -1)
@@ -116,7 +115,7 @@ func Me(c *fiber.Ctx) error {
 	userId, err := j.Parse(tokenString, "token")
 
 	if err != nil {
-		return c.Status(500).JSON(&model.Json{
+		return c.JSON(http.StatusInternalServerError, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
@@ -126,7 +125,7 @@ func Me(c *fiber.Ctx) error {
 	objectId, err := primitive.ObjectIDFromHex(userId)
 
 	if err != nil {
-		return c.Status(500).JSON(&model.Json{
+		return c.JSON(http.StatusInternalServerError, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
@@ -134,18 +133,18 @@ func Me(c *fiber.Ctx) error {
 
 	err = db.Collection("users").FindOne(ctx, bson.M{"_id": objectId}).Decode(&u)
 	if err == mongo.ErrNoDocuments {
-		return c.Status(404).JSON(&model.Json{
+		return c.JSON(http.StatusNotFound, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
 	} else if err != nil {
-		return c.Status(500).JSON(&model.Json{
+		return c.JSON(http.StatusInternalServerError, &model.Json{
 			Status:  "failed",
 			Message: err.Error(),
 		})
 	}
 
-	return c.Status(200).JSON(&model.Json{
+	return c.JSON(http.StatusOK, &model.Json{
 		Status: "success",
 		Data:   u,
 	})

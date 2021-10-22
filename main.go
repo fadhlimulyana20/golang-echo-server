@@ -8,6 +8,7 @@ import (
 	"github.com/fadhlimulyana20/golang-echo-server/config"
 	"github.com/fadhlimulyana20/golang-echo-server/database"
 	"github.com/fadhlimulyana20/golang-echo-server/middleware"
+	"github.com/fadhlimulyana20/golang-echo-server/router"
 	"github.com/labstack/echo/v4"
 	m "github.com/labstack/echo/v4/middleware"
 )
@@ -19,6 +20,7 @@ func main() {
 	config.Init()
 
 	// Logger middleware
+	e.Use(middleware.MiddlewareLogging)
 	e.HTTPErrorHandler = middleware.ErrorHandler
 
 	// Cors Middleware
@@ -39,6 +41,10 @@ func main() {
 			"hello": "world",
 		})
 	})
+
+	// Router Init
+	api := new(router.Api)
+	api.Init(e)
 
 	// Start HTTP Server
 	lock := make(chan error)
