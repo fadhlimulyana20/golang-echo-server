@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"os"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -13,7 +14,7 @@ var e error
 
 func Connect() error {
 	clientOptions := options.Client()
-	clientOptions.ApplyURI("mongodb://root:password@localhost:27017")
+	clientOptions.ApplyURI(os.Getenv("MONGO_URL"))
 	client, err := mongo.NewClient(clientOptions)
 	if err != nil {
 		return err
@@ -24,7 +25,7 @@ func Connect() error {
 		return err
 	}
 
-	db = client.Database("sister_jwt")
+	db = client.Database(os.Getenv("MONGO_DB_NAME"))
 	return nil
 }
 
